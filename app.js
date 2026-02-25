@@ -157,6 +157,15 @@ function getSvgPoint(evt) {
   return pt.matrixTransform(svg.getScreenCTM().inverse());
 }
 
+function deleteSelected() {
+    if (!selectedElement) return;
+
+    selectedElement.remove();
+    selectedElement = null;
+
+    pushHistory();
+}
+
 function addCar() {
 
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");

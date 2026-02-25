@@ -49,3 +49,8 @@ button {
 #canvas{
   touch-action: none; /* verhindert Page-Scroll beim Drag auf dem SVG */
 }
+
+button[onclick="deleteSelected()"]{
+  background: #d9534f;
+  color: white;
+}
