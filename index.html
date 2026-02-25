@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Unfallrekonstruktion</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+
+<h1>Unfallskizze</h1>
+
+<div id="toolbar">
+    <button onclick="addCar()">Auto</button>
+    <button onclick="addTruck()">LKW</button>
+    <button onclick="addMotorcycle()">Motorrad</button>
+    <button onclick="addBicycle()">Fahrrad</button>
+    <button onclick="addRoad()">Straße</button>
+    <button onclick="addCurve()">Kurve</button>
+    <button onclick="addIntersection()">Kreuzung</button>
+    <button onclick="addArrow()">Pfeil</button>
+    <button onclick="addText()">Text</button>
+    <button onclick="rotateSelected()">Drehen</button>
+    <button onclick="undo()">Zurück</button>
+    <button onclick="redo()">Vor</button>
+    <button onclick="exportPNG()">Bild erstellen</button>
+    </div>
+
+<div id="layout">
+
+    <!-- LINKER BEREICH: Zeichenfläche -->
+    <div id="left">
+        <svg id="canvas" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid meet">
+
+            <defs>
+                <!-- Grid -->
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ccc" stroke-width="1"/>
+                </pattern>
+
+                <!-- Auto-Icon (Top-Down) -->
+                <symbol id="icon-car-top" viewBox="0 0 100 200">
+                    <rect x="18" y="10" width="64" height="180" rx="14" ry="14"/>
+                    <rect x="10" y="30" width="10" height="35" rx="4" ry="4"/>
+                    <rect x="80" y="30" width="10" height="35" rx="4" ry="4"/>
+                    <rect x="10" y="135" width="10" height="35" rx="4" ry="4"/>
+                    <rect x="80" y="135" width="10" height="35" rx="4" ry="4"/>
+                </symbol>
+
+                <!-- LKW-Icon (Top-Down) -->
+                <symbol id="icon-truck-top" viewBox="0 0 140 220">
+                <!-- Auflieger -->
+                <rect x="30" y="10" width="80" height="150" rx="10"/>
+                <!-- Fahrerhaus -->
+                <rect x="30" y="160" width="80" height="50" rx="8"/>
+                <!-- Räder -->
+                <rect x="20" y="30" width="10" height="35" rx="4"/>
+                <rect x="110" y="30" width="10" height="35" rx="4"/>
+                <rect x="20" y="165" width="10" height="35" rx="4"/>
+                <rect x="110" y="165" width="10" height="35" rx="4"/>
+
+                <!-- Motorrad-Icon (Top-Down) -->
+                <symbol id="icon-motorcycle-top" viewBox="0 0 100 200">
+                <circle cx="50" cy="40" r="15"/>
+                <circle cx="50" cy="160" r="15"/>
+                <rect x="45" y="55" width="10" height="90"/>
+                </symbol>
+
+                <!-- Fahrrad-Icon (Top-Down) -->
+                <symbol id="icon-bicycle-top" viewBox="0 0 120 200">
+                <circle cx="60" cy="40" r="20" fill="none" stroke="currentColor" stroke-width="6"/>
+                <circle cx="60" cy="160" r="20" fill="none" stroke="currentColor" stroke-width="6"/>
+                <line x1="60" y1="60" x2="60" y2="140" stroke="currentColor" stroke-width="6"/>
+                </symbol>
+
+                <!-- Kurve-Icon (Top-Down) -->
+                <symbol id="icon-curve" viewBox="0 0 200 200">
+                <!-- Asphalt -->
+                <path d="M0 200 Q0 0 200 0 L200 70 Q70 70 70 200 Z" fill="#555"/>
+
+                <!-- Mittellinie (Trennung Fahrstreifen) -->
+                <path d="M35 200 Q35 35 200 35"
+                        fill="none"
+                        stroke="#fff"
+                        stroke-width="3"
+                        stroke-dasharray="14 10"
+                        opacity="0.85"/>
+                </symbol>
+
+                <!-- Kreuzung-Icon (Top-Down) -->
+                <symbol id="icon-intersection" viewBox="0 0 300 300">
+                <!-- Asphalt-Kreuz -->
+                <rect x="110" y="0" width="80" height="300" fill="#555"/>
+                <rect x="0" y="110" width="300" height="80" fill="#555"/>
+
+                <!-- Mittellinie vertikal -->
+                <line x1="150" y1="0" x2="150" y2="300"
+                        stroke="#fff"
+                        stroke-width="3"
+                        stroke-dasharray="14 10"
+                        opacity="0.85"/>
+
+                <!-- Mittellinie horizontal -->
+                <line x1="0" y1="150" x2="300" y2="150"
+                        stroke="#fff"
+                        stroke-width="3"
+                        stroke-dasharray="14 10"
+                        opacity="0.85"/>
+                </symbol>
+
+
+</symbol>
+            </defs>
+
+            <!-- Raster -->
+            <rect width="100%" height="100%" fill="url(#grid)" />
+
+        </svg>
+    </div>
+
+    <!-- RECHTER BEREICH: Anleitung -->
+    <aside id="info">
+        <h2>Anleitung</h2>
+
+        <p><b>Elemente hinzufügen:</b></p>
+        <ul>
+            <li>Auto</li>
+            <li>Straße</li>
+            <li>Pfeil</li>
+            <li>Text</li>
+        </ul>
+
+        <p><b>Bedienung:</b></p>
+        <ul>
+            <li>Objekt anklicken → orange Markierung</li>
+            <li>Mit der Maus ziehen (Snap-to-Grid aktiv)</li>
+            <li>Drehen → 15° Schritte</li>
+            <li>Doppelklick auf Text → bearbeiten</li>
+            <li>"ENTF" Taste → Objekt löschen</li>
+        </ul>
+
+        <p><b>Shortcuts:</b></p>
+        <ul>
+            <li>Strg + Z → Zurück</li>
+            <li>Strg + Y → Vor</li>
+        </ul>
+
+        <p><b>Export:</b></p>
+        <p>„Bild erstellen“ erzeugt eine PNG-Datei.</p>
+
+        <hr>
+
+        <p>
+            Hinweis: Dieses Tool dient zur vereinfachten
+            visuellen Darstellung eines Unfallhergangs.
+            Keine maßstabsgetreue Rekonstruktion.
+        </p>
+    </aside>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+#canvas {
+    border: 2px solid black;
+    background: #f5f5f5;
+}
+
+button {
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+/* SVG soll auf kleinen Screens mitwachsen */
+#canvas{
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Toolbar darf umbrechen und scrollen */
+#toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#toolbar button{
+  padding: 10px 12px;   /* fingerfreundlicher */
+  font-size: 16px;
+}
+
+/* Handy-Layout */
+@media (max-width: 900px){
+  #layout{
+    flex-direction: column;
+  }
+
+  #info{
+    width: 100%;
+    max-height: 220px;   /* scrollbar bleibt */
+    overflow-y: auto;
+  }
+}
+
+#canvas{
+  touch-action: none; /* verhindert Page-Scroll beim Drag auf dem SVG */
+}
