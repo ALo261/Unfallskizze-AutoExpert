@@ -431,11 +431,11 @@ function addBicycle() {
 }
 
 function addCurve() {
-  createVehicle("icon-curve", 0.4, "#555");
+  createVehicle("icon-curve", 0.58, "#555");
 }
 
 function addIntersection() {
-    createVehicle("icon-intersection", 0.75,"#555");
+  createVehicle("icon-intersection", 0.96, "#555");
 }
 
 function addPedestrian() {
