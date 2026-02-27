@@ -311,67 +311,76 @@ function addText() {
 }
 
 function exportPNG() {
-  // 1) SVG -> String
-  const serializer = new XMLSerializer();
-  const svgData = serializer.serializeToString(svg);
+  // 1) Sofort ein Tab öffnen (muss synchron im Click passieren)
+  const previewWin = window.open("", "_blank");
+  if (!previewWin) {
+    alert("Popup blockiert. Bitte Popups für diese Seite erlauben.");
+    return;
+  }
+  previewWin.document.write("<p>Erstelle PNG…</p>");
 
-  // 2) SVG -> Blob URL (statt base64)
-  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(svgBlob);
+  try {
+    // 2) SVG -> String
+    const serializer = new XMLSerializer();
+    const svgData = serializer.serializeToString(svg);
 
-  // 3) In Canvas rendern
-  const canvas = document.createElement("canvas");
+    // 3) SVG -> Blob URL
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const svgUrl = URL.createObjectURL(svgBlob);
 
-  // Nimm ViewBox/Größe sauber
-  const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
-  canvas.width = vb && vb.width ? vb.width : svg.clientWidth;
-  canvas.height = vb && vb.height ? vb.height : svg.clientHeight;
+    // 4) Canvas vorbereiten (ViewBox bevorzugen)
+    const canvas = document.createElement("canvas");
+    const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+    canvas.width = vb && vb.width ? vb.width : (svg.clientWidth || 900);
+    canvas.height = vb && vb.height ? vb.height : (svg.clientHeight || 600);
 
-  const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
 
-  const img = new Image();
-  img.onload = () => {
-    // weißer Hintergrund
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
+    const img = new Image();
+    img.onload = () => {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
 
-    URL.revokeObjectURL(url);
+      URL.revokeObjectURL(svgUrl);
 
-    // 4) Canvas -> PNG Blob
-    canvas.toBlob((blob) => {
-      if (!blob) return;
+      // 5) Canvas -> PNG (toBlob mit Fallback)
+      const done = (pngUrlOrDataUrl) => {
+        // PNG im geöffneten Tab anzeigen (User kann "Bild sichern"/"Teilen")
+        previewWin.location.href = pngUrlOrDataUrl;
 
-      const pngUrl = URL.createObjectURL(blob);
+        // Falls es eine Blob URL ist: später freigeben
+        if (pngUrlOrDataUrl.startsWith("blob:")) {
+          setTimeout(() => URL.revokeObjectURL(pngUrlOrDataUrl), 60_000);
+        }
+      };
 
-      // iOS/Safari: "download" wird oft ignoriert -> Fallback: neues Tab öffnen
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-      if (isIOS || isSafari) {
-        // Öffnet das PNG in neuem Tab, dort kann man "Bild sichern" / "Teilen"
-        window.open(pngUrl, "_blank");
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            // Fallback DataURL
+            done(canvas.toDataURL("image/png"));
+            return;
+          }
+          const pngUrl = URL.createObjectURL(blob);
+          done(pngUrl);
+        }, "image/png");
       } else {
-        // Desktop/Android Chrome: Download klappt meistens
-        const a = document.createElement("a");
-        a.href = pngUrl;
-        a.download = "unfallskizze.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        // sehr alte iOS Versionen
+        done(canvas.toDataURL("image/png"));
       }
+    };
 
-      // URL später freigeben
-      setTimeout(() => URL.revokeObjectURL(pngUrl), 60_000);
-    }, "image/png");
-  };
+    img.onerror = () => {
+      URL.revokeObjectURL(svgUrl);
+      previewWin.document.body.innerHTML = "<p>Export fehlgeschlagen (SVG konnte nicht gerendert werden).</p>";
+    };
 
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    alert("Export fehlgeschlagen (Browser blockiert oder SVG ungültig).");
-  };
+    img.src = svgUrl;
 
-  img.src = url;
+  } catch (err) {
+    previewWin.document.body.innerHTML = "<p>Export-Fehler: " + String(err) + "</p>";
+  }
 }
 
 function addTruck() {
