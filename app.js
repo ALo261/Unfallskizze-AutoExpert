@@ -19,16 +19,40 @@ function elToData(el) {
 }
 
 function snapshot() {
-  // alle Elemente außer dem Grid-Background speichern
   const items = [];
+
   for (const child of svg.children) {
     const tag = child.tagName.toLowerCase();
-    if (tag === "defs") continue; // defs nie speichern
-    // Grid-Rect erkennen: rect mit fill="url(#grid)"
+
+    // defs und grid nie in die history
+    if (tag === "defs") continue;
     if (tag === "rect" && child.getAttribute("fill") === "url(#grid)") continue;
-    items.push(elToData(child));
+
+    // WICHTIG: komplettes Element inkl. Kinder speichern
+    items.push(child.outerHTML);
   }
+
   return items;
+}
+
+function fixUseHrefs(root) {
+  const XLINK_NS = "http://www.w3.org/1999/xlink";
+  const uses = root.querySelectorAll ? root.querySelectorAll("use") : [];
+
+  for (const u of uses) {
+    const href = u.getAttribute("href");
+    const xhref = u.getAttributeNS(XLINK_NS, "href");
+
+    // Falls nur href da ist -> xlink:href setzen
+    if (href && !xhref) {
+      u.setAttributeNS(XLINK_NS, "xlink:href", href);
+    }
+
+    // Falls nur xlink:href da ist -> href setzen
+    if (!href && xhref) {
+      u.setAttribute("href", xhref);
+    }
+  }
 }
 
 function restore(items) {
@@ -37,26 +61,33 @@ function restore(items) {
   // alles löschen außer <defs> und Grid-Rect
   for (const child of [...svg.children]) {
     const tag = child.tagName.toLowerCase();
-
     const isDefs = tag === "defs";
     const isGridRect = tag === "rect" && child.getAttribute("fill") === "url(#grid)";
-
     if (isDefs || isGridRect) continue;
-
     child.remove();
   }
 
   clearSelection();
 
-  // neu aufbauen + Listener binden
-  for (const it of items) {
-    const el = document.createElementNS("http://www.w3.org/2000/svg", it.tag);
+  // Strings -> echte SVG-Elemente rekonstruieren
+  const parser = new DOMParser();
 
-    for (const [k, v] of Object.entries(it.attrs)) el.setAttribute(k, v);
-    if (it.tag === "text" && it.text !== null) el.textContent = it.text;
+  for (const html of items) {
+    // Fragment in SVG einbetten, damit es korrekt geparst wird
+    const doc = parser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">${html}</svg>`,
+      "image/svg+xml"
+    );
 
-    wireElement(el);
-    svg.appendChild(el);
+    const el = doc.documentElement.firstElementChild;
+    if (!el) continue;
+
+    // in das echte SVG übernehmen
+    const imported = document.importNode(el, true);
+
+    fixUseHrefs(imported);
+    wireElement(imported);
+    svg.appendChild(imported);
   }
 
   suppressHistory = false;
@@ -122,7 +153,7 @@ function makeDraggable(el) {
       const dx = p.x - start.x;
       const dy = p.y - start.y;
 
-      const grid = 40;
+      const grid = 3;
       const newX = Math.round((offsetX + dx) / grid) * grid;
       const newY = Math.round((offsetY + dy) / grid) * grid;
 
@@ -257,41 +288,33 @@ function clearSelection() {
     selectedElement = null;
 }
 
-function rotateSelected() {
+function rotateSelected(deltaDeg = 15) {
+  if (!selectedElement) return;
 
-    if (!selectedElement) return;
+  const bbox = selectedElement.getBBox();
+  const cx = bbox.x + bbox.width / 2;
+  const cy = bbox.y + bbox.height / 2;
 
-    const bbox = selectedElement.getBBox();
+  const transform = selectedElement.getAttribute("transform") || "";
 
-    const cx = bbox.x + bbox.width / 2;
-    const cy = bbox.y + bbox.height / 2;
+  let angle = 0;
+  const rotMatch = transform.match(/rotate\(([-\d.]+)/);
+  if (rotMatch) angle = parseFloat(rotMatch[1]);
 
-    let angle = 0;
+  angle += deltaDeg;
 
-    const transform = selectedElement.getAttribute("transform") || "";
+  const translateMatch = transform.match(/translate\([^)]+\)/);
+  const translate = translateMatch ? translateMatch[0] : "";
 
-    // Aktuelle Rotation lesen
-    if (transform.includes("rotate")) {
-        const match = transform.match(/rotate\(([^,]+)/);
-        if (match) angle = parseFloat(match[1]);
-    }
+  const scaleMatch = transform.match(/scale\([^)]+\)/);
+  const scale = scaleMatch ? scaleMatch[0] : "";
 
-    angle += 15;
+  selectedElement.setAttribute(
+    "transform",
+    `${translate} ${scale} rotate(${angle}, ${cx}, ${cy})`
+  );
 
-    // Translation behalten
-    const translateMatch = transform.match(/translate\([^)]+\)/);
-    const translate = translateMatch ? translateMatch[0] : "";
-
-    // Scale behalten (WICHTIG für Auto-Icon)
-    const scaleMatch = transform.match(/scale\([^)]+\)/);
-    const scale = scaleMatch ? scaleMatch[0] : "";
-
-    selectedElement.setAttribute(
-        "transform",
-        `${translate} ${scale} rotate(${angle}, ${cx}, ${cy})`
-    );
-
-    pushHistory();
+  pushHistory();
 }
 
 function addText() {
@@ -311,7 +334,7 @@ function addText() {
 }
 
 function exportPNG() {
-  // 1) Sofort ein Tab öffnen (muss synchron im Click passieren)
+  // Tab sofort öffnen (Popup-Blocker)
   const previewWin = window.open("", "_blank");
   if (!previewWin) {
     alert("Popup blockiert. Bitte Popups für diese Seite erlauben.");
@@ -320,55 +343,67 @@ function exportPNG() {
   previewWin.document.write("<p>Erstelle PNG…</p>");
 
   try {
-    // 2) SVG -> String
-    const serializer = new XMLSerializer();
-    const svgData = serializer.serializeToString(svg);
+    // --- 1) Export-Größe aus viewBox holen ---
+    const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
 
-    // 3) SVG -> Blob URL
+    // Fallback, falls viewBox fehlt
+    const exportW = vb && vb.width ? Math.round(vb.width) : (svg.clientWidth || 900);
+    const exportH = vb && vb.height ? Math.round(vb.height) : (svg.clientHeight || 600);
+
+    // --- 2) SVG serialisieren und width/height in den String injizieren ---
+    const serializer = new XMLSerializer();
+    let svgData = serializer.serializeToString(svg);
+
+    // Namespace absichern
+    if (!svgData.includes('xmlns="http://www.w3.org/2000/svg"')) {
+      svgData = svgData.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    if (!svgData.includes('xmlns:xlink="http://www.w3.org/1999/xlink"')) {
+      svgData = svgData.replace("<svg", '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+    }
+
+    // width/height setzen/ersetzen
+    svgData = svgData.replace(/<svg([^>]*?)>/, (m, attrs) => {
+      // vorhandenes width/height entfernen, dann sauber setzen
+      attrs = attrs
+        .replace(/\swidth="[^"]*"/, "")
+        .replace(/\sheight="[^"]*"/, "");
+      return `<svg${attrs} width="${exportW}" height="${exportH}">`;
+    });
+
+    // --- 3) SVG -> Blob URL ---
     const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const svgUrl = URL.createObjectURL(svgBlob);
 
-    // 4) Canvas vorbereiten (ViewBox bevorzugen)
+    // --- 4) Canvas exakt auf Exportgröße ---
     const canvas = document.createElement("canvas");
-    const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
-    canvas.width = vb && vb.width ? vb.width : (svg.clientWidth || 900);
-    canvas.height = vb && vb.height ? vb.height : (svg.clientHeight || 600);
-
+    canvas.width = exportW;
+    canvas.height = exportH;
     const ctx = canvas.getContext("2d");
 
     const img = new Image();
+
     img.onload = () => {
+      // Weißer Hintergrund
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
+
+      // WICHTIG: Bild auf volle Canvas-Größe zeichnen
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       URL.revokeObjectURL(svgUrl);
 
-      // 5) Canvas -> PNG (toBlob mit Fallback)
-      const done = (pngUrlOrDataUrl) => {
-        // PNG im geöffneten Tab anzeigen (User kann "Bild sichern"/"Teilen")
-        previewWin.location.href = pngUrlOrDataUrl;
-
-        // Falls es eine Blob URL ist: später freigeben
-        if (pngUrlOrDataUrl.startsWith("blob:")) {
-          setTimeout(() => URL.revokeObjectURL(pngUrlOrDataUrl), 60_000);
+      // PNG erzeugen (Mobile sicher)
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          previewWin.location.href = canvas.toDataURL("image/png");
+          return;
         }
-      };
+        const pngUrl = URL.createObjectURL(blob);
+        previewWin.location.href = pngUrl;
 
-      if (canvas.toBlob) {
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            // Fallback DataURL
-            done(canvas.toDataURL("image/png"));
-            return;
-          }
-          const pngUrl = URL.createObjectURL(blob);
-          done(pngUrl);
-        }, "image/png");
-      } else {
-        // sehr alte iOS Versionen
-        done(canvas.toDataURL("image/png"));
-      }
+        setTimeout(() => URL.revokeObjectURL(pngUrl), 60_000);
+      }, "image/png");
     };
 
     img.onerror = () => {
@@ -396,11 +431,35 @@ function addBicycle() {
 }
 
 function addCurve() {
-    createVehicle("icon-curve", 0.55,"#555");
+  createVehicle("icon-curve", 0.4, "#555");
 }
 
 function addIntersection() {
     createVehicle("icon-intersection", 0.75,"#555");
+}
+
+function addPedestrian() {
+  createVehicle("icon-pedestrian", 0.15, "#111"); // dunkel
+}
+
+function addTrafficLight() {
+  createVehicle("icon-traffic-light", 0.2, "#333"); // Gehäuse/Mast
+}
+
+function addStop() {
+  createVehicle("icon-stop", 0.15, "#333"); // Mastfarbe egal, Schild ist fix rot/weiß
+}
+
+function addYield() {
+  createVehicle("icon-yield", 0.15, "#333");
+}
+
+function addPriority() {
+  createVehicle("icon-priority", 0.15, "#333");
+}
+
+function addTree() {
+  createVehicle("icon-tree", 0.25, "#333"); // Baum hat fixe Farben, scale passt
 }
 
 function createVehicle(symbolId, scale = 0.6, color = "#1f77b4") {
@@ -424,9 +483,9 @@ function createVehicle(symbolId, scale = 0.6, color = "#1f77b4") {
 
 function wireElement(el) {
   // Klick = auswählen (NEU: stopPropagation, damit SVG-Hintergrund nicht abwählt)
-  el.addEventListener("mousedown", (e) => {
-    e.stopPropagation();
-    selectElement(el);
+  el.addEventListener("pointerdown", (e) => {
+  e.stopPropagation();
+  selectElement(el);
   });
 
   // Drag aktivieren
@@ -445,12 +504,12 @@ function wireElement(el) {
 }
 
 // NEU: Klick ins Leere / aufs Raster -> Auswahl weg
-svg.addEventListener("mousedown", (e) => {
-    const tag = e.target.tagName ? e.target.tagName.toLowerCase() : "";
-    const isGridRect = tag === "rect" && e.target.getAttribute("fill") === "url(#grid)";
-    if (e.target === svg || isGridRect) {
-        clearSelection();
-    }
+svg.addEventListener("pointerdown", (e) => {
+  const tag = e.target.tagName ? e.target.tagName.toLowerCase() : "";
+  const isGridRect = tag === "rect" && e.target.getAttribute("fill") === "url(#grid)";
+  if (e.target === svg || isGridRect) {
+    clearSelection();
+  }
 });
 
 document.addEventListener("keydown", e => {
@@ -464,3 +523,106 @@ document.addEventListener("keydown", e => {
 });
 
 pushHistory();
+
+function closeAllMenus(exceptId = null) {
+  const menus = document.querySelectorAll(".dropdown-menu");
+  menus.forEach(m => {
+    if (exceptId && m.id === exceptId) return;
+    m.style.display = "none";
+  });
+}
+
+function toggleMenu(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+
+  const isOpen = menu.style.display === "block";
+  closeAllMenus(menuId);
+  menu.style.display = isOpen ? "none" : "block";
+}
+
+function addCrosswalkRoad() {
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+    const width = 400;
+    const height = 120;
+
+    g.setAttribute("transform", "translate(100,200)");
+
+    // Asphalt
+    const road = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    road.setAttribute("x", 0);
+    road.setAttribute("y", 0);
+    road.setAttribute("width", width);
+    road.setAttribute("height", height);
+    road.setAttribute("fill", "#555");
+
+    // Mittellinie links (unterbrochen beim Zebrastreifen)
+    const lineLeft = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    lineLeft.setAttribute("x1", 0);
+    lineLeft.setAttribute("y1", height / 2);
+    lineLeft.setAttribute("x2", 160);
+    lineLeft.setAttribute("y2", height / 2);
+    lineLeft.setAttribute("stroke", "#fff");
+    lineLeft.setAttribute("stroke-width", 4);
+    lineLeft.setAttribute("stroke-dasharray", "20 14");
+
+    // Mittellinie rechts
+    const lineRight = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    lineRight.setAttribute("x1", 240);
+    lineRight.setAttribute("y1", height / 2);
+    lineRight.setAttribute("x2", width);
+    lineRight.setAttribute("y2", height / 2);
+    lineRight.setAttribute("stroke", "#fff");
+    lineRight.setAttribute("stroke-width", 4);
+    lineRight.setAttribute("stroke-dasharray", "20 14");
+
+    // 1) Asphalt zuerst (unten)
+    g.appendChild(road);
+
+    // 2) Zebrastreifen (darüber)
+    for (let y = 15; y <= 90; y += 15) {
+        const stripe = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        stripe.setAttribute("x", 165);
+        stripe.setAttribute("y", y);
+        stripe.setAttribute("width", 70);
+        stripe.setAttribute("height", 8);
+        stripe.setAttribute("fill", "#fff");
+        g.appendChild(stripe);
+    }
+
+    // 3) Mittellinien zuletzt (oben)
+    g.appendChild(lineLeft);
+    g.appendChild(lineRight);
+
+    wireElement(g);
+    svg.appendChild(g);
+    pushHistory();
+}
+
+function addRoundabout() {
+  // 300x300, bei Bedarf kleiner machen: 0.8 / 0.7
+  createVehicle("icon-roundabout", 0.8, "#555");
+}
+
+function addParking() {
+  // 320x220
+  createVehicle("icon-parking-8", 0.92, "#555");
+}
+
+function syncInfoHeight() {
+  const info = document.getElementById("info");
+  const canvas = document.getElementById("canvas");
+  if (!info || !canvas) return;
+
+  const h = canvas.getBoundingClientRect().height;
+  info.style.height = `${Math.round(h)}px`;
+}
+
+// beim Laden + bei Resize
+window.addEventListener("load", syncInfoHeight);
+window.addEventListener("resize", syncInfoHeight);
+
+// falls du dynamisch Layout änderst / Menüs umklappen etc.
+setTimeout(syncInfoHeight, 0);

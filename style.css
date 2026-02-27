@@ -1,39 +1,92 @@
 body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
+  font-family: Arial, sans-serif;
+  margin: 20px;
 }
 
-#canvas {
-    border: 2px solid black;
-    background: #f5f5f5;
-}
-
-button {
-    padding: 8px 12px;
-    margin-bottom: 10px;
-    cursor: pointer;
-}
-
-/* SVG soll auf kleinen Screens mitwachsen */
-#canvas{
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* Toolbar darf umbrechen und scrollen */
+/* Toolbar */
 #toolbar{
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-bottom: 10px;
 }
 
 #toolbar button{
-  padding: 10px 12px;   /* fingerfreundlicher */
+  padding: 10px 12px;
   font-size: 16px;
+  cursor: pointer;
 }
 
-/* Handy-Layout */
+/* ===== Desktop-Layout: nebeneinander ===== */
+#layout{
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-start;   /* WICHTIG */
+}
+
+#left{
+  flex: 1 1 auto;     /* nimmt den restlichen Platz */
+  min-width: 0;       /* wichtig gegen Überlauf */
+}
+
+/* Anleitung rechts */
+#info{
+  width: 240px;
+  height: 600px;          /* exakt Canvas-Höhe */
+  overflow-y: auto;
+  border: 2px solid #ddd;
+  background: #fafafa;
+  padding: 14px;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+#canvas{
+  border: 2px solid black;
+  background: #f5f5f5;
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  max-height: calc(100vh - 160px); /* passt in den Screen */
+  touch-action: none;
+}
+
+/* Löschen-Button */
+button[onclick="deleteSelected()"]{
+  background: #d9534f;
+  color: white;
+}
+
+/* Dropdown */
+.dropdown{
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu{
+  display: none;
+  position: absolute;
+  top: 110%;
+  left: 0;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 160px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+.dropdown-menu button{
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+}
+
+/* ===== Handy: untereinander + Canvas responsive ===== */
 @media (max-width: 900px){
   #layout{
     flex-direction: column;
@@ -41,16 +94,21 @@ button {
 
   #info{
     width: 100%;
-    max-height: 220px;   /* scrollbar bleibt */
-    overflow-y: auto;
+    max-height: 220px;
+  }
+
+  #canvas{
+    width: 100%;
+    height: auto;
   }
 }
 
-#canvas{
-  touch-action: none; /* verhindert Page-Scroll beim Drag auf dem SVG */
+.btn-export {
+  background: #28a745;   /* sattes Grün */
+  color: white;
+  border: none;
 }
 
-button[onclick="deleteSelected()"]{
-  background: #d9534f;
-  color: white;
+.btn-export:hover {
+  background: #218838;
 }

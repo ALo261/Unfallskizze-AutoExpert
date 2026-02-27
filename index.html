@@ -11,26 +11,75 @@
 <h1>Unfallskizze</h1>
 
 <div id="toolbar">
-    <button onclick="addCar()">Auto</button>
-    <button onclick="addTruck()">LKW</button>
-    <button onclick="addMotorcycle()">Motorrad</button>
-    <button onclick="addBicycle()">Fahrrad</button>
-    <button onclick="addRoad()">Straße</button>
-    <button onclick="addCurve()">Kurve</button>
-    <button onclick="addIntersection()">Kreuzung</button>
-    <button onclick="addArrow()">Pfeil</button>
+    <div class="dropdown">
+  <button type="button" onclick="toggleMenu('participantsMenu')">Verkehrsteilnehmer ▾</button>
+
+  <div id="participantsMenu" class="dropdown-menu" onpointerdown="event.stopPropagation()">
+    <button type="button" onclick="addCar()">Auto</button>
+    <button type="button" onclick="addTruck()">LKW</button>
+    <button type="button" onclick="addMotorcycle()">Motorrad</button>
+    <button type="button" onclick="addBicycle()">Fahrrad</button>
+    <button type="button" onclick="addPedestrian()">Fußgänger</button>
+  </div>
+</div>
+
+<div class="dropdown">
+  <button type="button" onclick="toggleMenu('singleLaneMenu')">
+    Einspuriger Verkehr ▾
+  </button>
+
+  <div id="singleLaneMenu" class="dropdown-menu"
+       onpointerdown="event.stopPropagation()">
+
+    <button type="button" onclick="addRoad()">Straße</button>
+    <button type="button" onclick="addIntersection()">Kreuzung</button>
+    <button type="button" onclick="addCurve()">Kurve</button>
+    <button type="button" onclick="addCrosswalkRoad()">Zebrastreifen</button>
+
+  </div>
+</div>
+
+<div class="dropdown">
+  <button type="button" onclick="toggleMenu('detailsMenu')">
+    Details ▾
+  </button>
+
+  <div id="detailsMenu"
+       class="dropdown-menu"
+       onpointerdown="event.stopPropagation()">
+
+    <button type="button" onclick="addTrafficLight()">Ampel</button>
+    <button type="button" onclick="addStop()">Stop</button>
+    <button type="button" onclick="addYield()">Vorfahrt gewähren</button>
+    <button type="button" onclick="addPriority()">Vorfahrt</button>
+    <button type="button" onclick="addTree()">Baum</button>
+  </div>
+</div>
+
+    <button onclick="addRoundabout()">Kreisel</button>
+    <button onclick="addParking()">Parkplatz</button>
+    <button onclick="addArrow()">Pfeil Fahrtrichtung</button>
     <button onclick="addText()">Text</button>
-    <button onclick="rotateSelected()">Drehen</button>
+
+    <div class="dropdown">
+  <button type="button" onclick="toggleMenu('rotateMenu')">Drehen ▾</button>
+
+  <div id="rotateMenu" class="dropdown-menu">
+    <button type="button" onclick="rotateSelected(-15)">⟲ Links</button>
+    <button type="button" onclick="rotateSelected(15)">⟳ Rechts</button>
+  </div>
+    </div>
+
     <button onclick="undo()">Zurück</button>
     <button onclick="deleteSelected()">Gewähltes Objekt Löschen</button>
-    <button onclick="exportPNG()">Bild erstellen</button>
-    </div>
+    <button class="btn-export" onclick="exportPNG()">Bild erstellen</button>
+</div>
 
 <div id="layout">
 
     <!-- LINKER BEREICH: Zeichenfläche -->
     <div id="left">
-        <svg id="canvas" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid meet">
+        <svg id="canvas" width="900" height="600">
 
             <defs>
                 <!-- Grid -->
@@ -40,51 +89,128 @@
 
                 <!-- Auto-Icon (Top-Down) -->
                 <symbol id="icon-car-top" viewBox="0 0 100 200">
-                    <rect x="18" y="10" width="64" height="180" rx="14" ry="14"/>
-                    <rect x="10" y="30" width="10" height="35" rx="4" ry="4"/>
-                    <rect x="80" y="30" width="10" height="35" rx="4" ry="4"/>
-                    <rect x="10" y="135" width="10" height="35" rx="4" ry="4"/>
-                    <rect x="80" y="135" width="10" height="35" rx="4" ry="4"/>
+
+                <!-- Karosserie -->
+                <rect x="18" y="10" width="64" height="180" rx="14" ry="14"/>
+
+                <!-- Räder -->
+                <rect x="10" y="30" width="10" height="35" rx="4" ry="4"/>
+                <rect x="80" y="30" width="10" height="35" rx="4" ry="4"/>
+                <rect x="10" y="135" width="10" height="35" rx="4" ry="4"/>
+                <rect x="80" y="135" width="10" height="35" rx="4" ry="4"/>
+
+                <!-- Motorhaube (leichte optische Trennung vorne) -->
+                <line x1="25" y1="40" x2="75" y2="40"
+                        stroke="rgba(0,0,0,0.25)" stroke-width="2"/>
+
+                <!-- Windschutzscheibe (weiter hinten) -->
+                <rect x="30" y="55" width="40" height="30"
+                        rx="6" ry="6" fill="#cfe8ff"/>
+
+                <!-- Heckscheibe -->
+                <rect x="30" y="150" width="40" height="22"
+                        rx="6" ry="6" fill="#cfe8ff"/>
+
+                <!-- Scheinwerfer vorne -->
+                <circle cx="32" cy="16" r="4" fill="#fff"/>
+                <circle cx="68" cy="16" r="4" fill="#fff"/>
+
+                <!-- Rücklichter (jetzt innerhalb der Karosserie) -->
+                <circle cx="32" cy="182" r="3.5" fill="#cc0000"/>
+                <circle cx="68" cy="182" r="3.5" fill="#cc0000"/>
+
                 </symbol>
 
                 <!-- LKW-Icon (Top-Down) -->
-                <symbol id="icon-truck-top" viewBox="0 0 140 220">
+               <symbol id="icon-truck-top" viewBox="0 0 140 220">
+
+                <!-- Fahrerhaus (Front oben) -->
+                <rect x="42.5" y="10" width="55" height="55" rx="8"/>
+
+                <!-- Scheinwerfer (so weit vorne, dass sie die Kabine nur berühren) -->
+                    <circle cx="58" cy="14" r="4" fill="#ffffff"/>
+                <circle cx="82" cy="14" r="4" fill="#ffffff"/>
+
+                <!-- Windschutzscheibe -->
+                <rect x="55" y="30" width="30" height="22" rx="5" fill="#cfe8ff"/>
+
                 <!-- Auflieger -->
-                <rect x="30" y="10" width="80" height="150" rx="10"/>
-                <!-- Fahrerhaus -->
-                <rect x="30" y="160" width="80" height="50" rx="8"/>
-                <!-- Räder -->
-                <rect x="20" y="30" width="10" height="35" rx="4"/>
-                <rect x="110" y="30" width="10" height="35" rx="4"/>
-                <rect x="20" y="165" width="10" height="35" rx="4"/>
-                <rect x="110" y="165" width="10" height="35" rx="4"/>
+                <rect x="42.5" y="65" width="55" height="145" rx="8"/>
+
+                <!-- Rücklichter (innen) -->
+                <circle cx="58" cy="206" r="3" fill="#cc0000"/>
+                <circle cx="82" cy="206" r="3" fill="#cc0000"/>
+
+                <!-- Vordere Achse (weiter vorne an der Kabine) -->
+                <rect x="37" y="28" width="10" height="35" rx="4"/>
+                <rect x="92.5" y="28" width="10" height="35" rx="4"/>
+
+                <!-- Hintere Achsen (2 Paare mit kleiner Lücke, höher gesetzt) -->
+                <rect x="37" y="135" width="10" height="35" rx="4"/>
+                <rect x="92.5" y="135" width="10" height="35" rx="4"/>
+
+                <rect x="37" y="168" width="10" height="35" rx="4"/>
+                <rect x="92.5" y="168" width="10" height="35" rx="4"/>
+
+                </symbol>
 
                 <!-- Motorrad-Icon (Top-Down) -->
                 <symbol id="icon-motorcycle-top" viewBox="0 0 100 200">
-                <circle cx="50" cy="40" r="15"/>
-                <circle cx="50" cy="160" r="15"/>
-                <rect x="45" y="55" width="10" height="90"/>
+
+                <!-- Hinterrad -->
+                <circle cx="50" cy="30" r="18"/>
+
+                <!-- Vorderrad -->
+                <circle cx="50" cy="170" r="18"/>
+
+                <!-- Rahmen -->
+                <rect x="40" y="60" width="20" height="80" rx="6"/>
+
+                <!-- Sitz -->
+                <rect x="38" y="60" width="24" height="20" rx="6"/>
+
+                <!-- Lenker vorne (deutlich breiter & dicker) -->
+                <rect x="20" y="150" width="60" height="14" rx="6"/>
+
                 </symbol>
 
                 <!-- Fahrrad-Icon (Top-Down) -->
-                <symbol id="icon-bicycle-top" viewBox="0 0 120 200">
-                <circle cx="60" cy="40" r="20" fill="none" stroke="currentColor" stroke-width="6"/>
-                <circle cx="60" cy="160" r="20" fill="none" stroke="currentColor" stroke-width="6"/>
-                <line x1="60" y1="60" x2="60" y2="140" stroke="currentColor" stroke-width="6"/>
+                <symbol id="icon-bicycle-top" viewBox="0 0 100 200">
+
+                <!-- Hinterrad -->
+                <circle cx="50" cy="30" r="20"
+                        stroke="currentColor" stroke-width="4" fill="none"/>
+
+                <!-- Vorderrad -->
+                <circle cx="50" cy="170" r="20"
+                        stroke="currentColor" stroke-width="4" fill="none"/>
+
+                <!-- Rahmen -->
+                <line x1="50" y1="50" x2="50" y2="150"
+                        stroke="currentColor" stroke-width="4"/>
+
+                <!-- Lenker vorne (breit & kräftig) -->
+                <rect x="20" y="145" width="60" height="12"
+                        fill="currentColor"/>
+
                 </symbol>
 
                 <!-- Kurve-Icon (Top-Down) -->
-                <symbol id="icon-curve" viewBox="0 0 200 200">
-                <!-- Asphalt -->
-                <path d="M0 200 Q0 0 200 0 L200 70 Q70 70 70 200 Z" fill="#555"/>
+               <symbol id="icon-curve" viewBox="0 0 120 120">
+                <!-- Asphalt: Viertelring -->
+                <path d="
+                    M 0 120
+                    A 120 120 0 0 1 120 0
+                    L 120 60
+                    A 60 60 0 0 0 60 120
+                    Z
+                " fill="#555"/>
 
-                <!-- Mittellinie (Trennung Fahrstreifen) -->
-                <path d="M35 200 Q35 35 200 35"
-                        fill="none"
-                        stroke="#fff"
-                        stroke-width="3"
-                        stroke-dasharray="14 10"
-                        opacity="0.85"/>
+                <!-- Mittellinie gestrichelt -->
+                <path d="
+                    M 30 120
+                    A 90 90 0 0 1 120 30
+                " fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="14 10" opacity="0.85"/>
                 </symbol>
 
                 <!-- Kreuzung-Icon (Top-Down) -->
@@ -93,23 +219,159 @@
                 <rect x="110" y="0" width="80" height="300" fill="#555"/>
                 <rect x="0" y="110" width="300" height="80" fill="#555"/>
 
-                <!-- Mittellinie vertikal -->
-                <line x1="150" y1="0" x2="150" y2="300"
-                        stroke="#fff"
-                        stroke-width="3"
-                        stroke-dasharray="14 10"
-                        opacity="0.85"/>
+                <!-- Mittellinien (gestrichelt) - OHNE Zentrum (110..190) -->
+                <!-- vertikal: oben + unten -->
+                <line x1="150" y1="0"   x2="150" y2="110"
+                        stroke="#fff" stroke-width="3" stroke-dasharray="14 10" opacity="0.85"/>
+                <line x1="150" y1="190" x2="150" y2="300"
+                        stroke="#fff" stroke-width="3" stroke-dasharray="14 10" opacity="0.85"/>
 
-                <!-- Mittellinie horizontal -->
-                <line x1="0" y1="150" x2="300" y2="150"
-                        stroke="#fff"
-                        stroke-width="3"
-                        stroke-dasharray="14 10"
-                        opacity="0.85"/>
+                <!-- horizontal: links + rechts -->
+                <line x1="0"   y1="150" x2="110" y2="150"
+                        stroke="#fff" stroke-width="3" stroke-dasharray="14 10" opacity="0.85"/>
+                <line x1="190" y1="150" x2="300" y2="150"
+                        stroke="#fff" stroke-width="3" stroke-dasharray="14 10" opacity="0.85"/>
+
+                <!-- Haltelinien (rechtsfahrend, rechte Seite der Einfahrten) -->
+                <!-- Einfahrt von oben (Richtung nach unten): rechte Seite = links (110..150) -->
+                <line x1="110" y1="110" x2="150" y2="110"
+                        stroke="#fff" stroke-width="6" opacity="0.95"/>
+
+                <!-- Einfahrt von unten (Richtung nach oben): rechte Seite = rechts (150..190) -->
+                <line x1="150" y1="190" x2="190" y2="190"
+                        stroke="#fff" stroke-width="6" opacity="0.95"/>
+
+                <!-- Einfahrt von links (Richtung nach rechts): rechte Seite = unten (150..190) -->
+                <line x1="110" y1="150" x2="110" y2="190"
+                        stroke="#fff" stroke-width="6" opacity="0.95"/>
+
+                <!-- Einfahrt von rechts (Richtung nach links): rechte Seite = oben (110..150) -->
+                <line x1="190" y1="110" x2="190" y2="150"
+                        stroke="#fff" stroke-width="6" opacity="0.95"/>
                 </symbol>
 
+                <!-- Fußgänger -->
+                <symbol id="icon-pedestrian" viewBox="0 0 100 200">
+                <circle cx="50" cy="30" r="14"/>
+                <rect x="44" y="48" width="12" height="55" rx="6"/>
+                <rect x="22" y="62" width="56" height="10" rx="5"/>
+                <rect x="35" y="100" width="10" height="55" rx="5"/>
+                <rect x="55" y="100" width="10" height="55" rx="5"/>
+                </symbol>
+
+                <!-- Ampel -->
+                <symbol id="icon-traffic-light" viewBox="0 0 120 220">
+                <!-- Mast -->
+                <rect x="56" y="80" width="8" height="130" rx="4"/>
+                <!-- Gehäuse -->
+                <rect x="35" y="10" width="50" height="120" rx="10"/>
+                <!-- Lichter -->
+                <circle cx="60" cy="35" r="12" fill="#cc0000"/>
+                <circle cx="60" cy="70" r="12" fill="#d6b100"/>
+                <circle cx="60" cy="105" r="12" fill="#00a000"/>
+                </symbol>
+
+                <!-- STOP-Schild -->
+                <symbol id="icon-stop" viewBox="0 0 140 220">
+                <!-- Schild -->
+                <polygon points="70,15 100,30 115,60 115,100 100,130 70,145 40,130 25,100 25,60 40,30"
+                        fill="#cc0000"/>
+                <text x="70" y="92" text-anchor="middle"
+                        font-size="36" font-family="Arial" font-weight="700"
+                        fill="#ffffff">STOP</text>
+                <!-- Mast -->
+                <rect x="66" y="145" width="8" height="65" rx="4" fill="#777"/>
+                </symbol>
+
+                <!-- Vorfahrt gewähren (Yield) -->
+                <symbol id="icon-yield" viewBox="0 0 160 220">
+                <!-- Schild (Dreieck) -->
+                <polygon points="80,20 140,125 20,125" fill="#ffffff" stroke="#cc0000" stroke-width="10"/>
+                <!-- Mast -->
+                <rect x="76" y="125" width="8" height="85" rx="4" fill="#777"/>
+                </symbol>
+
+                <!-- Vorfahrtstraße (Priority Road) -->
+                <symbol id="icon-priority" viewBox="0 0 160 220">
+                <!-- Schild: gelbe Raute mit weißem Rand -->
+                <polygon points="80,25 135,80 80,135 25,80" fill="#ffd400" stroke="#ffffff" stroke-width="10"/>
+                <!-- Mast -->
+                <rect x="76" y="135" width="8" height="75" rx="4" fill="#777"/>
+                </symbol>
+
+                <!-- Baum -->
+                <symbol id="icon-tree" viewBox="0 0 160 220">
+                <!-- Krone -->
+                <circle cx="80" cy="70" r="45" fill="#2e8b57"/>
+                <circle cx="55" cy="85" r="30" fill="#2e8b57"/>
+                <circle cx="105" cy="85" r="30" fill="#2e8b57"/>
+                <!-- Stamm -->
+                <rect x="70" y="110" width="20" height="70" rx="6" fill="#7b4a12"/>
+                </symbol>
+
+                <symbol id="icon-road-crosswalk" viewBox="0 0 400 120">
+  <!-- Asphalt -->
+  <rect x="0" y="0" width="400" height="120" fill="#555"/>
+
+  <!-- Fahrbahntrennlinie (gestrichelt), aber unterbrochen im Zebrastreifen-Bereich -->
+  <!-- links -->
+  <line x1="0" y1="60" x2="160" y2="60"
+        stroke="#fff" stroke-width="4" stroke-dasharray="20 14" opacity="0.85"/>
+  <!-- rechts -->
+  <line x1="240" y1="60" x2="400" y2="60"
+        stroke="#fff" stroke-width="4" stroke-dasharray="20 14" opacity="0.85"/>
+
+  <!-- Zebrastreifen (quer über die Straße) -->
+  <g fill="#fff" opacity="0.95">
+    <rect x="165" y="15" width="70" height="8"/>
+    <rect x="165" y="30" width="70" height="8"/>
+    <rect x="165" y="45" width="70" height="8"/>
+    <rect x="165" y="60" width="70" height="8"/>
+    <rect x="165" y="75" width="70" height="8"/>
+    <rect x="165" y="90" width="70" height="8"/>
+  </g>
+</symbol>
+
+<symbol id="icon-roundabout" viewBox="0 0 300 300">
+  <!-- Asphalt-Ring -->
+  <circle cx="150" cy="150" r="135" fill="#555"/>
+  <!-- Mittelinsel -->
+  <circle cx="150" cy="150" r="70" fill="#4f4f4f"/>
+
+  <!-- Ring-Innenloch "freischneiden" optisch durch Insel/Innenkante -->
+  <circle cx="150" cy="150" r="95" fill="none" stroke="#555" stroke-width="50"/>
+
+  <!-- gestrichelte Fahrbahntrennung im Kreisel (optional, mittig im Ring) -->
+  <circle cx="150" cy="150" r="115" fill="none"
+          stroke="#fff" stroke-width="4" stroke-dasharray="18 12" opacity="0.75"/>
+</symbol>
+
+<symbol id="icon-parking-8" viewBox="0 0 320 300">
+
+  <!-- Asphalt -->
+  <rect x="0" y="0" width="320" height="300" fill="#555"/>
+
+  <!-- Mittelgasse -->
+  <rect x="0" y="130" width="320" height="40" fill="#4f4f4f"/>
+
+  <g stroke="#fff" stroke-width="3" opacity="0.9">
+
+    <!-- obere Reihe -->
+    <rect x="20" y="20" width="280" height="95" fill="none"/>
+    <line x1="90" y1="20" x2="90" y2="115"/>
+    <line x1="160" y1="20" x2="160" y2="115"/>
+    <line x1="230" y1="20" x2="230" y2="115"/>
+
+    <!-- untere Reihe -->
+    <rect x="20" y="185" width="280" height="95" fill="none"/>
+    <line x1="90" y1="185" x2="90" y2="280"/>
+    <line x1="160" y1="185" x2="160" y2="280"/>
+    <line x1="230" y1="185" x2="230" y2="280"/>
+
+  </g>
 
 </symbol>
+
             </defs>
 
             <!-- Raster -->
@@ -119,46 +381,44 @@
     </div>
 
     <!-- RECHTER BEREICH: Anleitung -->
-    <aside id="info">
-        <h2>Anleitung</h2>
+ <aside id="info">
+    <h2>Anleitung</h2>
 
-        <p><b>Elemente hinzufügen:</b></p>
-        <ul>
-            <li>Auto</li>
-            <li>Straße</li>
-            <li>Pfeil</li>
-            <li>Text</li>
-        </ul>
+    <p><b>Elemente hinzufügen:</b></p>
+    <ul>
+        <li><b>Verkehrsteilnehmer:</b> Auto, LKW, Motorrad, Fahrrad, Fußgänger</li>
+        <li><b>Einspuriger Verkehr:</b> Straße, Kreuzung, Kurve, Zebrastreifen</li>
+        <li><b>Details:</b> Ampel, Stopschild, Vorfahrtsschild, Baum</li>
+        <li>Kreisel</li>
+        <li>Parkplatz</li>
+        <li>Pfeil der die Fahrtrichtung anzeigen soll</li>
+        <li>Textfeld für eigenen Text</li>
+    </ul>
 
-        <p><b>Bedienung:</b></p>
-        <ul>
-            <li>Objekt anklicken → orange Markierung</li>
-            <li>Mit der Maus ziehen (Snap-to-Grid aktiv)</li>
-            <li>Drehen → 15° Schritte</li>
-            <li>Doppelklick auf Text → bearbeiten</li>
-            <li>"ENTF" Taste → Objekt löschen</li>
-        </ul>
+    <p><b>Bedienung:</b></p>
+    <ul>
+        <li>Objekt anklicken → orange Markierung</li>
+        <li>Mit Maus oder Finger verschieben (Raster aktiviert)</li>
+        <li>Drehen über Menü „Drehen“ (links / rechts)</li>
+        <li>Doppelklick auf Text → bearbeiten</li>
+        <li>"ENTF" Taste oder Löschen-Button → Objekt entfernen</li>
+    </ul>
 
-        <p><b>Shortcuts:</b></p>
-        <ul>
-            <li>Strg + Z → Zurück</li>
-            <li>Strg + Y → Vor</li>
-        </ul>
+    <p><b>Export:</b></p>
+    <p>„Bild erstellen“ erzeugt eine PNG-Datei der aktuellen Zeichnung.</p>
 
-        <p><b>Export:</b></p>
-        <p>„Bild erstellen“ erzeugt eine PNG-Datei.</p>
+    <hr>
 
-        <hr>
-
-        <p>
-            Hinweis: Dieses Tool dient zur vereinfachten
-            visuellen Darstellung eines Unfallhergangs.
-            Keine maßstabsgetreue Rekonstruktion.
-        </p>
-    </aside>
+    <p>
+        Hinweis: Dieses Tool dient der vereinfachten visuellen Darstellung
+        eines Unfallhergangs. Es handelt sich nicht um eine maßstabsgetreue
+        oder technisch exakte Rekonstruktion.
+    </p>
+</aside>
 
 </div>
 
 <script src="app.js"></script>
 </body>
 </html>
+
