@@ -311,29 +311,67 @@ function addText() {
 }
 
 function exportPNG() {
+  // 1) SVG -> String
+  const serializer = new XMLSerializer();
+  const svgData = serializer.serializeToString(svg);
 
-    const serializer = new XMLSerializer();
-    const svgData = serializer.serializeToString(svg);
+  // 2) SVG -> Blob URL (statt base64)
+  const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = svg.clientWidth;
-    canvas.height = svg.clientHeight;
+  // 3) In Canvas rendern
+  const canvas = document.createElement("canvas");
 
-    const ctx = canvas.getContext("2d");
+  // Nimm ViewBox/Größe sauber
+  const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+  canvas.width = vb && vb.width ? vb.width : svg.clientWidth;
+  canvas.height = vb && vb.height ? vb.height : svg.clientHeight;
 
-    const img = new Image();
-    img.onload = function () {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
+  const ctx = canvas.getContext("2d");
 
-        const link = document.createElement("a");
-        link.download = "unfallskizze.png";
-        link.href = canvas.toDataURL("image/png");
-        link.click();
-    };
+  const img = new Image();
+  img.onload = () => {
+    // weißer Hintergrund
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
 
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+    URL.revokeObjectURL(url);
+
+    // 4) Canvas -> PNG Blob
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      const pngUrl = URL.createObjectURL(blob);
+
+      // iOS/Safari: "download" wird oft ignoriert -> Fallback: neues Tab öffnen
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+      if (isIOS || isSafari) {
+        // Öffnet das PNG in neuem Tab, dort kann man "Bild sichern" / "Teilen"
+        window.open(pngUrl, "_blank");
+      } else {
+        // Desktop/Android Chrome: Download klappt meistens
+        const a = document.createElement("a");
+        a.href = pngUrl;
+        a.download = "unfallskizze.png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      // URL später freigeben
+      setTimeout(() => URL.revokeObjectURL(pngUrl), 60_000);
+    }, "image/png");
+  };
+
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    alert("Export fehlgeschlagen (Browser blockiert oder SVG ungültig).");
+  };
+
+  img.src = url;
 }
 
 function addTruck() {
